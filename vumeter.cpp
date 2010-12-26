@@ -17,6 +17,7 @@ Vumeter::Vumeter(QWidget *parent)
 	timer = startTimer(video);
 
 	new QShortcut(QKeySequence("Space"), this, SLOT(pause()));
+	new QShortcut(QKeySequence("Ctrl+F"), this, SLOT(fullscreen()));
 }
 
 Vumeter::~Vumeter()
@@ -87,6 +88,11 @@ void Vumeter::pause()
 		thread->start();
 		timer = startTimer(video);
 	}
+}
+
+void Vumeter::fullscreen()
+{
+	this->setWindowState(this->windowState() ^ Qt::WindowFullScreen);
 }
 
 

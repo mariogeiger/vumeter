@@ -28,6 +28,7 @@ protected:
 
 private slots:
 	void pause();
+	void fullscreen();
 
 private:
 	AlsaListen *thread;
