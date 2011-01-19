@@ -115,7 +115,7 @@ AlsaListen::AlsaListen(QObject *parent, int rate, int moy)
 	snd_pcm_hw_params_any(handle, params);
 	snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_NONINTERLEAVED);
 	snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_FLOAT_LE);
-	snd_pcm_hw_params_set_channels(handle, params, 1);
+	snd_pcm_hw_params_set_channels(handle, params, 2);
 	uint val = rate;
 	snd_pcm_hw_params_set_rate_near(handle, params, &val, &dir);
 	frames = 100000;
@@ -130,7 +130,7 @@ AlsaListen::AlsaListen(QObject *parent, int rate, int moy)
 
 	snd_pcm_hw_params_get_period_size(params, &frames, &dir);
 
-	size = frames * 1;
+	size = frames * 2;
 	buffer = (float *)malloc(size * 4);
 }
 
@@ -162,6 +162,7 @@ void AlsaListen::run()
 
 		for (int i = 0; i < size; ++i) {
 			sum += buffer[i];
+			qDebug("%f", buffer[i]);
 			count++;
 
 			if (count >= moy) {
