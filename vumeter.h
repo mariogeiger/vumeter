@@ -31,6 +31,8 @@ private slots:
 	void fullscreen();
 
 private:
+	void drawChanel(QList<float> &chanel);
+
 	AlsaListen *thread;
 	int speed;
 	int timer;
@@ -40,9 +42,10 @@ private:
 class AlsaListen : public QThread
 {
 public:
-	AlsaListen(QObject *parent = 0, int rate = 10000, int moy = 1);
+	AlsaListen(QObject *parent = 0, int rate = 192000, int moy = 1);
 	~AlsaListen();
-	QList<float> &values() {return datas;}
+	QList<float> &left() {return left;}
+	QList<float> &right() {return right;}
 	void stop() {stopnext = true;}
 
 	QMutex mutex;
@@ -56,9 +59,9 @@ private:
 	snd_pcm_t *handle;
 	snd_pcm_uframes_t frames;
 	int rate;
-	int moy;
 
-	QList<float> datas;
+	QList<float> left;
+	QList<float> right;
 };
 
 #endif // VUMETER_H

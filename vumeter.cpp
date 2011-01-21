@@ -5,14 +5,13 @@
 Vumeter::Vumeter(QWidget *parent)
 	: QGLWidget(parent)
 {
-	int rate = 192000 / 2;
-	int moy = 1;
+	int rate = 192000;
 	video = 40;
 
-	thread = new AlsaListen(this, rate, moy);
+	thread = new AlsaListen(this, rate);
 	thread->start();
 
-	speed = rate / moy * video / 1000;
+	speed = rate * video / 1000;
 
 	timer = startTimer(video);
 
@@ -41,12 +40,10 @@ void Vumeter::resizeGL(int w, int h)
 	glMatrixMode(GL_MODELVIEW);
 }
 
-void Vumeter::paintGL()
+void Vumeter::drawChanel(QList<float> &chanel)
 {
 	thread->mutex.lock();
-	if (thread->values().size() > width()) {
-		glClear(GL_COLOR_BUFFER_BIT);
-		glLoadIdentity();
+	if (chanel.size() > width()) {
 
 		glBegin(GL_LINE_STRIP);
 
@@ -55,7 +52,7 @@ void Vumeter::paintGL()
 		double factor = heightf / 8.0;
 
 		for (int i = 0; i < width(); ++i) {
-			float y = -thread->values().at(i) * factor + offset;
+			float y = -chanel.at(i) * factor + offset;
 
 			float hue = y / heightf;
 			QColor c = QColor::fromHsvF(hue, 1.0, 1.0);
@@ -64,14 +61,23 @@ void Vumeter::paintGL()
 			glVertex2f(i, y);
 		}
 
-		for (int i = 0; i < speed && !thread->values().isEmpty(); ++i) {
-			thread->values().removeFirst();
+		for (int i = 0; i < speed && !chanel.isEmpty(); ++i) {
+			chanel.removeFirst();
 		}
 
 		glEnd();
 		glFlush();
 	}
 	thread->mutex.unlock();
+}
+
+void Vumeter::paintGL()
+{
+	glClear(GL_COLOR_BUFFER_BIT);
+	glLoadIdentity();
+
+	drawChanel(thread->left());
+	drawChanel(thread->right());
 }
 
 void Vumeter::timerEvent(QTimerEvent *)
@@ -98,8 +104,8 @@ void Vumeter::fullscreen()
 
 
 
-AlsaListen::AlsaListen(QObject *parent, int rate, int moy)
-	: QThread(parent), rate(rate), moy(moy)
+AlsaListen::AlsaListen(QObject *parent, int rate)
+	: QThread(parent), rate(rate)
 {
 	int rc = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE, 0);
 
@@ -145,9 +151,6 @@ void AlsaListen::run()
 {
 	stopnext = false;
 
-	float sum = 0;
-	int count = 0;
-
 	while (!stopnext) {
 		int rc = snd_pcm_readi(handle, buffer, frames);
 
@@ -160,18 +163,11 @@ void AlsaListen::run()
 			fprintf(stderr, "short read, read %d frames\n", rc);
 		}
 
-		for (int i = 0; i < size; ++i) {
-			sum += buffer[i];
-			qDebug("%f", buffer[i]);
-			count++;
-
-			if (count >= moy) {
-				count = 0;
-				mutex.lock();
-				datas.append(((sum > 0.0) ? 1.0 : -1.0) * pow(sum / moy, 2));
-				mutex.unlock();
-				sum = 0;
-			}
+		for (int i = 0; i < size; i += 2) {
+			mutex.lock();
+			left.append(buffer[i]);
+			right.append(buffer[i + 1]);
+			mutex.unlock();
 		}
 	}
 }
