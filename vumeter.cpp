@@ -5,7 +5,7 @@
 Vumeter::Vumeter(QWidget *parent)
 	: QGLWidget(parent)
 {
-	int rate = 192000;
+	uint rate = 192000;
 	video = 40;
 
 	thread = new AlsaListen(this, rate);
@@ -40,22 +40,48 @@ void Vumeter::resizeGL(int w, int h)
 	glMatrixMode(GL_MODELVIEW);
 }
 
-void Vumeter::drawChanel(QList<float> &chanel)
+void Vumeter::drawChanel(QList<float> &chanel, QColor color)
 {
+	//! TRIGGER
 	thread->mutex.lock();
+	bool lastWasNegativ = false;
+	while (chanel.size() > width()) {
+		if (lastWasNegativ && chanel.first() > 0.0)
+			break;
+
+		if (chanel.first() < 0.0)
+			lastWasNegativ = true;
+
+		chanel.removeFirst();
+	}
+	thread->mutex.unlock();
+
 	if (chanel.size() > width()) {
 
 		glBegin(GL_LINE_STRIP);
 
-		double heightf = (double)height();
-		double offset = heightf * 0.5;
-		double factor = heightf / 8.0;
+		double min = 0;
+		double max = 0;
 
 		for (int i = 0; i < width(); ++i) {
-			float y = -chanel.at(i) * factor + offset;
+			if (chanel[i] < min)
+				min = chanel[i];
+			if (chanel[i] > max)
+				max = chanel[i];
+		}
 
-			float hue = y / heightf;
-			QColor c = QColor::fromHsvF(hue, 1.0, 1.0);
+		min *= 1.05;
+		max *= 1.05;
+
+		double heightf = (double)height();
+		double delta = max - min;
+
+		thread->mutex.lock();
+		for (int i = 0; i < width(); ++i) {
+			float y = heightf - ((chanel[i] - min) / delta) * heightf;
+
+			//float hue = y / heightf;
+			QColor c = color; //QColor::fromHsvF(hue, 1.0, 1.0);
 			glColor3f(c.redF(), c.greenF(), c.blueF());
 
 			glVertex2f(i, y);
@@ -64,11 +90,15 @@ void Vumeter::drawChanel(QList<float> &chanel)
 		for (int i = 0; i < speed && !chanel.isEmpty(); ++i) {
 			chanel.removeFirst();
 		}
+		if (chanel.size() > thread->getrate()) {
+			chanel.clear();
+			qDebug("clear : rate = %d bps", thread->getrate());
+		}
+		thread->mutex.unlock();
 
 		glEnd();
 		glFlush();
 	}
-	thread->mutex.unlock();
 }
 
 void Vumeter::paintGL()
@@ -76,8 +106,10 @@ void Vumeter::paintGL()
 	glClear(GL_COLOR_BUFFER_BIT);
 	glLoadIdentity();
 
-	drawChanel(thread->left());
-	drawChanel(thread->right());
+	//qDebug("%d", thread->getleft().size());
+
+	drawChanel(thread->getleft(), QColor(Qt::red));
+	drawChanel(thread->getright(), QColor(Qt::white));
 }
 
 void Vumeter::timerEvent(QTimerEvent *)
@@ -104,8 +136,8 @@ void Vumeter::fullscreen()
 
 
 
-AlsaListen::AlsaListen(QObject *parent, int rate)
-	: QThread(parent), rate(rate)
+AlsaListen::AlsaListen(QObject *parent, uint &_rate)
+	: QThread(parent), rate(_rate)
 {
 	int rc = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE, 0);
 
@@ -122,10 +154,14 @@ AlsaListen::AlsaListen(QObject *parent, int rate)
 	snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_NONINTERLEAVED);
 	snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_FLOAT_LE);
 	snd_pcm_hw_params_set_channels(handle, params, 2);
-	uint val = rate;
-	snd_pcm_hw_params_set_rate_near(handle, params, &val, &dir);
-	frames = 100000;
+
+	snd_pcm_hw_params_set_rate_near(handle, params, &rate, &dir);
+	snd_pcm_hw_params_get_rate(params, &rate, &dir);
+	_rate = rate;
+
+	frames = rate / 100;
 	snd_pcm_hw_params_set_period_size_near(handle, params, &frames, &dir);
+	snd_pcm_hw_params_get_period_size(params, &frames, &dir);
 
 	rc = snd_pcm_hw_params(handle, params);
 
@@ -134,7 +170,6 @@ AlsaListen::AlsaListen(QObject *parent, int rate)
 		exit(1);
 	}
 
-	snd_pcm_hw_params_get_period_size(params, &frames, &dir);
 
 	size = frames * 2;
 	buffer = (float *)malloc(size * 4);
@@ -169,6 +204,7 @@ void AlsaListen::run()
 			right.append(buffer[i + 1]);
 			mutex.unlock();
 		}
+		//qDebug("new frame: %d - %d", left.size(), right.size());
 	}
 }
 
