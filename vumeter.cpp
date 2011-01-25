@@ -46,11 +46,12 @@ void Vumeter::drawChanel(QList<float> &chanel, QColor color)
 	thread->mutex.lock();
 	bool lastWasNegativ = false;
 	int triggered;
+
 	for (triggered = 0; chanel.size() > width(); triggered++) {
-		if (lastWasNegativ && chanel.first() > 0.0)
+		if (lastWasNegativ && chanel[width() / 2] > 0.0)
 			break;
 
-		if (chanel.first() < 0.0)
+		if (chanel[width() / 2] < 0.0)
 			lastWasNegativ = true;
 
 		chanel.removeFirst();
@@ -101,7 +102,7 @@ void Vumeter::drawChanel(QList<float> &chanel, QColor color)
 		glEnd();
 		glFlush();
 
-//		qDebug("triggered : %d", triggered);
+		//qDebug("triggered : %d", triggered);
 	} else {
 		qDebug("!(chanel.size() > width()) : %d", chanel.size());
 	}
