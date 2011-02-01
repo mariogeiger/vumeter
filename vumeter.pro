@@ -13,9 +13,11 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         vumeter.cpp \
-    alsalisten.cpp
+    alsalisten.cpp \
+    lockin.cpp
 
 HEADERS  += vumeter.h \
-    alsalisten.h
+    alsalisten.h \
+    lockin.h
 
 LIBS += -lasound
