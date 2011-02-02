@@ -8,7 +8,7 @@ Vumeter::Vumeter(QWidget *parent)
 	uint rate = 192000;
 	video = 40;
 
-        thread = new AlsaListen(this, rate, "plughw:CARD=ICH5,DEV=3"); // plughw
+		thread = new AlsaListen(this, rate, "default"); // plughw
 	thread->start();
 
 	speed = rate * video / 1000;
