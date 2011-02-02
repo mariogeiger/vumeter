@@ -8,7 +8,7 @@ Vumeter::Vumeter(QWidget *parent)
 	uint rate = 192000;
 	video = 40;
 
-	thread = new AlsaListen(this, rate);
+        thread = new AlsaListen(this, rate, "plughw:CARD=ICH5,DEV=3"); // plughw
 	thread->start();
 
 	speed = rate * video / 1000;
@@ -74,7 +74,7 @@ void Vumeter::drawChanel(QList<float> &chanel, QColor color)
 
 		min *= 1.05;
 		max *= 1.05;
-		printf("%s [%f -> %f]\n",color.name().toAscii().data() , min, max);
+//		printf("%s [%f -> %f]\n",color.name().toAscii().data() , min, max);
 
 		double heightf = (double)height();
 		double delta = max - min;
@@ -104,7 +104,7 @@ void Vumeter::drawChanel(QList<float> &chanel, QColor color)
 
 		//qDebug("triggered : %d", triggered);
 	} else {
-		qDebug("!(chanel.size() > width()) : %d", chanel.size());
+                //qDebug("!(chanel.size() > width()) : %d", chanel.size());
 	}
 }
 

@@ -12,7 +12,7 @@ class AlsaListen : public QThread
 	Q_OBJECT
 
 public:
-	AlsaListen(QObject *parent, uint &rate);
+        AlsaListen(QObject *parent, uint &rate, const char *device);
 	~AlsaListen();
 	QList<float> &getleft() {return left;}
 	QList<float> &getright() {return right;}
