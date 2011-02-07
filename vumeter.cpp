@@ -62,8 +62,8 @@ void Vumeter::drawChanel(QList<float> &chanel, QColor color)
 
 		glBegin(GL_LINE_STRIP);
 
-		double min = 0;
-		double max = 0;
+                double min = chanel.first();
+                double max = chanel.first();
 
 		for (int i = 0; i < width(); ++i) {
 			if (chanel[i] < min)
@@ -72,8 +72,9 @@ void Vumeter::drawChanel(QList<float> &chanel, QColor color)
 				max = chanel[i];
 		}
 
-		min *= 1.05;
-		max *= 1.05;
+                double dp = (max - min) * 0.05;
+                min -= dp;
+                max += dp;
 //		printf("%s [%f -> %f]\n",color.name().toAscii().data() , min, max);
 
 		double heightf = (double)height();
