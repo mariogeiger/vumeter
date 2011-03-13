@@ -6,7 +6,7 @@ Vumeter::Vumeter(QWidget *parent)
     : QGLWidget(parent)
 {
     rate = 96000;
-    video = 50;
+    video = 60;
 
     thread = new AlsaListen(this, rate, "default"); // plughw
     thread->start();
@@ -76,20 +76,20 @@ void Vumeter::drawChanel(QList<float> &chanel, QColor color)
 
         double max = 0.0;
         int fmax = 0;
-        for (int i = 0; i < n; ++i) {
+        for (int i = 1; i < n; ++i) {
             if (spectrum[i] > max) {
                 max = spectrum[i];
                 fmax = i;
             }
         }
-        qDebug("%d", fmax * rate / speed);
+        qDebug("%dHz (%d samples)", fmax * rate / speed, speed);
 
-        double dx = (double)width() / log10(n);
+        double dx = ((double)width() + 1.0) / log10(n - 9);
 
         glBegin(GL_LINE_STRIP);
         glColor3d(color.redF(), color.greenF(), color.blueF());
-        for (int i = 0; i < n; ++i) {
-            double x = dx * log10(i);
+        for (int i = 9; i < n; ++i) {
+            double x = dx * log10(i - 8);
             //qDebug("s[%d] = %f", i, spectrum[i]);
             double y = (double)height() * (1.0 - spectrum[i] / max);
             glVertex2d(x, y);
