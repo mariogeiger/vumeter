@@ -16,8 +16,8 @@ public:
 	~AlsaListen();
 	QList<float> &getleft() {return left;}
 	QList<float> &getright() {return right;}
-	void stop() {stopnext = true;}
-	int getframes() const {return frames;}
+        void stop() {stopnext = true;}
+        int getframes() const {return period;}
 	int getrate() const {return rate;}
 
 	QMutex mutex;
@@ -28,8 +28,8 @@ private:
 	bool stopnext;
 	float *buffer;
 	int size;
-	snd_pcm_t *handle;
-	snd_pcm_uframes_t frames;
+        snd_pcm_t *pcm;
+        snd_pcm_uframes_t period;
 	uint rate;
 
 	QList<float> left;

@@ -3,6 +3,7 @@
 
 #include <QtGui/QWidget>
 #include <QtOpenGL>
+#include <rfftw.h>
 
 #include "alsalisten.h"
 
@@ -32,6 +33,12 @@ private:
 	int speed;
 	int timer;
 	int video;
+        uint rate;
+
+        fftw_real *in;
+        fftw_real *out;
+        fftw_real *spectrum;
+        rfftw_plan plan;
 };
 
 #endif // VUMETER_H

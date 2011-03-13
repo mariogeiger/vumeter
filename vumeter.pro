@@ -18,4 +18,4 @@ SOURCES += main.cpp\
 HEADERS  += vumeter.h \
     alsalisten.h \
 
-LIBS += -lasound
+LIBS += -lasound -lrfftw -lfftw -lm

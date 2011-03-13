@@ -3,140 +3,127 @@
 #include <QShortcut>
 
 Vumeter::Vumeter(QWidget *parent)
-	: QGLWidget(parent)
+    : QGLWidget(parent)
 {
-	uint rate = 192000;
-	video = 40;
+    rate = 96000;
+    video = 50;
 
-		thread = new AlsaListen(this, rate, "default"); // plughw
-	thread->start();
+    thread = new AlsaListen(this, rate, "default"); // plughw
+    thread->start();
 
-	speed = rate * video / 1000;
+    speed = rate * video / 1000;
 
-	timer = startTimer(video);
+    in = new fftw_real[speed];
+    out = new fftw_real[speed];
+    spectrum = new fftw_real[speed / 2 + 1];
 
-	new QShortcut(QKeySequence("Space"), this, SLOT(pause()));
-	new QShortcut(QKeySequence("Ctrl+F"), this, SLOT(fullscreen()));
+    plan = rfftw_create_plan(speed, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE);
+
+    timer = startTimer(video);
+
+    new QShortcut(QKeySequence("Space"), this, SLOT(pause()));
+    new QShortcut(QKeySequence("Ctrl+F"), this, SLOT(fullscreen()));
 }
 
 Vumeter::~Vumeter()
 {
-	thread->stop();
-	thread->wait(5000);
+    thread->stop();
+    thread->wait();
+
+    rfftw_destroy_plan(plan);
+
+    delete[] spectrum;
+    delete[] out;
+    delete[] in;
 }
 
 void Vumeter::initializeGL()
 {
-	glDisable(GL_DEPTH_TEST);
+    glDisable(GL_DEPTH_TEST);
 }
 
 void Vumeter::resizeGL(int w, int h)
 {
-	glViewport(0, 0, w, h);
+    glViewport(0, 0, w, h);
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity ();
-	glOrtho(0, w, h, 0, 0, 1);
-	glMatrixMode(GL_MODELVIEW);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity ();
+    glOrtho(0, w, h, 0, 0, 1);
+    glMatrixMode(GL_MODELVIEW);
 }
 
 void Vumeter::drawChanel(QList<float> &chanel, QColor color)
 {
-	//! TRIGGER
-	thread->mutex.lock();
-	bool lastWasNegativ = false;
-	int triggered;
+    if (chanel.size() >= speed) {
+        thread->mutex.lock();
 
-	for (triggered = 0; chanel.size() > width(); triggered++) {
-		if (lastWasNegativ && chanel[width() / 2] > 0.0)
-			break;
+        for (int i = 0; i < speed; ++i) {
+            in[i] = chanel.takeFirst();
+        }
+        thread->mutex.unlock();
 
-		if (chanel[width() / 2] < 0.0)
-			lastWasNegativ = true;
+        rfftw_one(plan, in, out);
 
-		chanel.removeFirst();
-	}
-	thread->mutex.unlock();
+        spectrum[0] = out[0] * out[0];  /* DC component */
 
-	if (chanel.size() >= width()) {
+        for (int k = 1; k < (speed+1)/2; ++k)  /* (k < N/2 rounded up) */
+            spectrum[k] = out[k] * out[k] + out[speed-k] * out[speed-k];
 
-		glBegin(GL_LINE_STRIP);
+        if (speed % 2 == 0) /* N is even */
+            spectrum[speed/2] = out[speed/2] * out[speed/2];  /* Nyquist freq. */
 
-                double min = chanel.first();
-                double max = chanel.first();
+        int n = speed / 2 + 1;
 
-		for (int i = 0; i < width(); ++i) {
-			if (chanel[i] < min)
-				min = chanel[i];
-			if (chanel[i] > max)
-				max = chanel[i];
-		}
+        double max = 0.0;
+        int fmax = 0;
+        for (int i = 0; i < n; ++i) {
+            if (spectrum[i] > max) {
+                max = spectrum[i];
+                fmax = i;
+            }
+        }
+        qDebug("%d", fmax * rate / speed);
 
-                double dp = (max - min) * 0.05;
-                min -= dp;
-                max += dp;
-//		printf("%s [%f -> %f]\n",color.name().toAscii().data() , min, max);
+        double dx = (double)width() / log10(n);
 
-		double heightf = (double)height();
-		double delta = max - min;
-
-		thread->mutex.lock();
-		for (int i = 0; i < width(); ++i) {
-			float y = heightf - ((chanel[i] - min) / delta) * heightf;
-
-			//float hue = y / heightf;
-			QColor c = color; //QColor::fromHsvF(hue, 1.0, 1.0);
-			glColor3f(c.redF(), c.greenF(), c.blueF());
-
-			glVertex2f(i, y);
-		}
-
-		for (int i = 0; i < speed - triggered && !chanel.isEmpty(); ++i) {
-			chanel.removeFirst();
-		}
-		if (chanel.size() > thread->getrate()) {
-			chanel.clear();
-			qDebug("clear : rate = %d bps", thread->getrate());
-		}
-		thread->mutex.unlock();
-
-		glEnd();
-		glFlush();
-
-		//qDebug("triggered : %d", triggered);
-	} else {
-                //qDebug("!(chanel.size() > width()) : %d", chanel.size());
-	}
+        glBegin(GL_LINE_STRIP);
+        glColor3d(color.redF(), color.greenF(), color.blueF());
+        for (int i = 0; i < n; ++i) {
+            double x = dx * log10(i);
+            //qDebug("s[%d] = %f", i, spectrum[i]);
+            double y = (double)height() * (1.0 - spectrum[i] / max);
+            glVertex2d(x, y);
+        }
+        glEnd();
+    }
 }
 
 void Vumeter::paintGL()
 {
-	glClear(GL_COLOR_BUFFER_BIT);
-	glLoadIdentity();
+    glClear(GL_COLOR_BUFFER_BIT);
+    glLoadIdentity();
 
-//	qDebug("%d/%d", thread->getleft().size(), thread->getright().size());
-
-	drawChanel(thread->getleft(), QColor(Qt::red));
-	drawChanel(thread->getright(), QColor(Qt::white));
+//    drawChanel(thread->getleft(), QColor(Qt::red));
+    drawChanel(thread->getright(), QColor(Qt::white));
 }
 
 void Vumeter::timerEvent(QTimerEvent *)
 {
-	updateGL();
+    updateGL();
 }
 
 void Vumeter::pause()
 {
-	if (thread->isRunning()) {
-		thread->stop();
-		killTimer(timer); timer = 0;
-	} else {
-		thread->start();
-		timer = startTimer(video);
-	}
+    if (thread->isRunning()) {
+        thread->stop();
+        killTimer(timer); timer = 0;
+    } else {
+        thread->start();
+        timer = startTimer(video);
+    }
 }
 
 void Vumeter::fullscreen()
 {
-	this->setWindowState(this->windowState() ^ Qt::WindowFullScreen);
+    this->setWindowState(this->windowState() ^ Qt::WindowFullScreen);
 }
