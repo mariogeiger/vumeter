@@ -6,18 +6,19 @@ Vumeter::Vumeter(QWidget *parent)
     : QGLWidget(parent)
 {
     rate = 96000;
-    video = 60;
+    video = 200;
 
     thread = new AlsaListen(this, rate, "default"); // plughw
     thread->start();
 
     speed = rate * video / 1000;
+    nc = (speed / 2 ) + 1;
 
-    in = new fftw_real[speed];
-    out = new fftw_real[speed];
-    spectrum = new fftw_real[speed / 2 + 1];
+    in = new double[speed];
+    out = (fftw_complex *)fftw_malloc(sizeof (fftw_complex) * nc);
+    spectrum = new double[nc];
 
-    plan = rfftw_create_plan(speed, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE);
+    plan = fftw_plan_dft_r2c_1d(speed, in, out, FFTW_ESTIMATE);
 
     timer = startTimer(video);
 
@@ -30,7 +31,7 @@ Vumeter::~Vumeter()
     thread->stop();
     thread->wait();
 
-    rfftw_destroy_plan(plan);
+    fftw_destroy_plan(plan);
 
     delete[] spectrum;
     delete[] out;
@@ -62,35 +63,28 @@ void Vumeter::drawChanel(QList<float> &chanel, QColor color)
         }
         thread->mutex.unlock();
 
-        rfftw_one(plan, in, out);
+        fftw_execute(plan);
 
-        spectrum[0] = out[0] * out[0];  /* DC component */
 
-        for (int k = 1; k < (speed+1)/2; ++k)  /* (k < N/2 rounded up) */
-            spectrum[k] = out[k] * out[k] + out[speed-k] * out[speed-k];
-
-        if (speed % 2 == 0) /* N is even */
-            spectrum[speed/2] = out[speed/2] * out[speed/2];  /* Nyquist freq. */
-
-        int n = speed / 2 + 1;
+        for (int i = 0; i < nc; ++i)
+            spectrum[i] = out[i][0] * out[i][0] + out[i][1] * out[i][1];
 
         double max = 0.0;
-        int fmax = 0;
-        for (int i = 1; i < n; ++i) {
+        double fmax = 0.0;
+        for (int i = 1; i < nc; ++i) {
             if (spectrum[i] > max) {
                 max = spectrum[i];
-                fmax = i;
+                fmax = double(i);
             }
         }
-        qDebug("%dHz (%d samples)", fmax * rate / speed, speed);
+        qDebug("%fHz (%d samples)", fmax * double(rate) / double(speed), speed);
 
-        double dx = ((double)width() + 1.0) / log10(n - 9);
+        double dx = ((double)width() + 1.0) / log10(nc - 9);
 
         glBegin(GL_LINE_STRIP);
         glColor3d(color.redF(), color.greenF(), color.blueF());
-        for (int i = 9; i < n; ++i) {
+        for (int i = 9; i < nc; ++i) {
             double x = dx * log10(i - 8);
-            //qDebug("s[%d] = %f", i, spectrum[i]);
             double y = (double)height() * (1.0 - spectrum[i] / max);
             glVertex2d(x, y);
         }

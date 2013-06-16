@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui widgets
 QT       += opengl
 
 TARGET = vumeter
@@ -18,4 +18,4 @@ SOURCES += main.cpp\
 HEADERS  += vumeter.h \
     alsalisten.h \
 
-LIBS += -lasound -lrfftw -lfftw -lm
+LIBS += -lasound -lfftw3 -lm

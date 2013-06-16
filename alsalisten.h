@@ -9,31 +9,31 @@
 
 class AlsaListen : public QThread
 {
-	Q_OBJECT
+    Q_OBJECT
 
 public:
-        AlsaListen(QObject *parent, uint &rate, const char *device);
-	~AlsaListen();
-	QList<float> &getleft() {return left;}
-	QList<float> &getright() {return right;}
-        void stop() {stopnext = true;}
-        int getframes() const {return period;}
-	int getrate() const {return rate;}
+    AlsaListen(QObject *parent, uint &rate, const char *device);
+    ~AlsaListen();
+    QList<float> &getleft() {return left;}
+    QList<float> &getright() {return right;}
+    void stop() {stopnext = true;}
+    int getframes() const {return period;}
+    int getrate() const {return rate;}
 
-	QMutex mutex;
+    QMutex mutex;
 
 private:
-	void run();
+    void run();
 
-	bool stopnext;
-	float *buffer;
-	int size;
-        snd_pcm_t *pcm;
-        snd_pcm_uframes_t period;
-	uint rate;
+    bool stopnext;
+    float *buffer;
+    int size;
+    snd_pcm_t *pcm;
+    snd_pcm_uframes_t period;
+    uint rate;
 
-	QList<float> left;
-	QList<float> right;
+    QList<float> left;
+    QList<float> right;
 };
 
 #endif // ALSALISTEN_H

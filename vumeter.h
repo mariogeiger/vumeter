@@ -1,9 +1,9 @@
 #ifndef VUMETER_H
 #define VUMETER_H
 
-#include <QtGui/QWidget>
+#include <QWidget>
 #include <QtOpenGL>
-#include <rfftw.h>
+#include <fftw3.h>
 
 #include "alsalisten.h"
 
@@ -16,29 +16,30 @@ public:
     ~Vumeter();
 
 protected:
-	void initializeGL();
-	void resizeGL(int w, int h);
-	void paintGL();
+    void initializeGL();
+    void resizeGL(int w, int h);
+    void paintGL();
 
-	virtual void timerEvent(QTimerEvent *);
+    virtual void timerEvent(QTimerEvent *);
 
 private slots:
-	void pause();
-	void fullscreen();
+    void pause();
+    void fullscreen();
 
 private:
-	void drawChanel(QList<float> &chanel, QColor color);
+    void drawChanel(QList<float> &chanel, QColor color);
 
-	AlsaListen *thread;
-	int speed;
-	int timer;
-	int video;
-        uint rate;
+    AlsaListen *thread;
+    int speed;
+    int nc;
+    int timer;
+    int video;
+    uint rate;
 
-        fftw_real *in;
-        fftw_real *out;
-        fftw_real *spectrum;
-        rfftw_plan plan;
+    double *in;
+    fftw_complex *out;
+    double *spectrum;
+    fftw_plan plan;
 };
 
 #endif // VUMETER_H
