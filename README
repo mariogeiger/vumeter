@@ -1,6 +1,0 @@
-use alsa library
-libasound2-dev
-
-and fftw3
-libfftw3-dev
-
